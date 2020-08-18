@@ -248,6 +248,8 @@ type IstioTrafficRouting struct {
 type IstioVirtualService struct {
 	// Name holds the name of the VirtualService
 	Name string `json:"name"`
+	// Namespace holds the namespace of the VirtualService
+	Namespace string `json:"namespace"`
 	// Routes list of routes within VirtualService to edit
 	Routes []string `json:"routes"`
 }

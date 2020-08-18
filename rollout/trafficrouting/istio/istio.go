@@ -45,7 +45,13 @@ func GetRolloutVirtualServiceKeys(rollout *v1alpha1.Rollout) []string {
 	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name == "" {
 		return []string{}
 	}
-	return []string{fmt.Sprintf("%s/%s", rollout.Namespace, rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)}
+
+	vsNamespace := rollout.Namespace
+	// Override VirtualService namespace
+	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace != "" {
+		vsNamespace = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+	}
+	return []string{fmt.Sprintf("%s/%s", vsNamespace, rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)}
 }
 
 // Reconciler holds required fields to reconcile Istio resources
