@@ -619,7 +619,11 @@ func (c *Controller) getReferencedVirtualServices(rollout *v1alpha1.Rollout) (*[
 		canary := rollout.Spec.Strategy.Canary
 		if canary.TrafficRouting != nil && canary.TrafficRouting.Istio != nil {
 			gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(c.defaultIstioVersion)
-			vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(rollout.Namespace).Get(canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
+			vsNamespace := canary.TrafficRouting.Istio.VirtualService.Namespace
+			if vsNamespace == "" {
+				vsNamespace = rollout.Namespace
+			}
+			vsvc, err := c.dynamicclientset.Resource(gvk).Namespace(vsNamespace).Get(canary.TrafficRouting.Istio.VirtualService.Name, metav1.GetOptions{})
 			if k8serrors.IsNotFound(err) {
 				return nil, field.Invalid(fldPath, canary.TrafficRouting.Istio.VirtualService.Name, err.Error())
 			}
