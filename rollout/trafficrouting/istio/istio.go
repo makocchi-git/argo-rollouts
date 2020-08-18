@@ -46,10 +46,9 @@ func GetRolloutVirtualServiceKeys(rollout *v1alpha1.Rollout) []string {
 		return []string{}
 	}
 
-	vsNamespace := rollout.Namespace
-	// Override VirtualService namespace
-	if rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace != "" {
-		vsNamespace = rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+	vsNamespace := rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+	if vsNamespace == "" {
+		vsNamespace = rollout.Namespace
 	}
 	return []string{fmt.Sprintf("%s/%s", vsNamespace, rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name)}
 }
@@ -192,12 +191,17 @@ func (r *Reconciler) Type() string {
 // Reconcile modifies Istio resources to reach desired state
 func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	vsvcName := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Name
+	vsvcNamespace := r.rollout.Spec.Strategy.Canary.TrafficRouting.Istio.VirtualService.Namespace
+	if vsvcNamespace == "" {
+		vsvcNamespace = r.rollout.Namespace
+	}
+
 	gvk := schema.ParseGroupResource("virtualservices.networking.istio.io").WithVersion(r.defaultAPIVersion)
-	client := r.client.Resource(gvk).Namespace(r.rollout.Namespace)
+	client := r.client.Resource(gvk).Namespace(vsvcNamespace)
 	vsvc, err := client.Get(vsvcName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			msg := fmt.Sprintf("Virtual Service `%s` not found", vsvcName)
+			msg := fmt.Sprintf("Virtual Service `%s/%s` not found", vsvcNamespace, vsvcName)
 			r.recorder.Event(r.rollout, corev1.EventTypeWarning, "VirtualServiceNotFound", msg)
 		}
 		return err
@@ -209,7 +213,7 @@ func (r *Reconciler) Reconcile(desiredWeight int32) error {
 	if !modifed {
 		return nil
 	}
-	msg := fmt.Sprintf("Updating VirtualService `%s` to desiredWeight '%d'", vsvcName, desiredWeight)
+	msg := fmt.Sprintf("Updating VirtualService `%s/%s` to desiredWeight '%d'", vsvcNamespace, vsvcName, desiredWeight)
 	r.log.Info(msg)
 	r.recorder.Event(r.rollout, corev1.EventTypeNormal, "UpdatingVirtualService", msg)
 	_, err = client.Update(modifiedVsvc, metav1.UpdateOptions{})
